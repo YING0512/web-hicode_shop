@@ -1,0 +1,282 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>後台管理系統 - Hey!Code</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/components.js"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-900">
+
+    <!-- Admin Header -->
+    <div
+        class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded bg-yellow-500 flex items-center justify-center font-bold text-xl text-white">A
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-gray-800">後台管理系統</h1>
+                <p class="text-xs text-gray-500 uppercase tracking-wider font-semibold">Admin Console</p>
+            </div>
+        </div>
+        <a href="index.html"
+            class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm text-gray-600 transition-colors">返回商店</a>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="max-w-7xl mx-auto px-6 pt-8 pb-4">
+        <div class="flex space-x-6 border-b border-gray-300">
+            <button onclick="switchTab('codes')" id="tab-codes"
+                class="pb-3 text-sm font-bold tracking-wide transition-colors text-blue-600 border-b-2 border-blue-600">代碼管理</button>
+            <button onclick="switchTab('users')" id="tab-users"
+                class="pb-3 text-sm font-bold tracking-wide transition-colors text-gray-500 hover:text-gray-700">會員管理 &
+                權限</button>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-6 py-4">
+        <!-- Codes View -->
+        <div id="view-codes" class="flex flex-col lg:flex-row gap-8">
+            <div class="w-full lg:w-1/3">
+                <div class="bg-white border border-gray-200 p-6 rounded-lg shadow-sm sticky top-24">
+                    <div class="mb-6">
+                        <h2 class="text-lg font-bold text-gray-800 mb-1">發行代碼</h2>
+                        <p class="text-sm text-gray-500">設定代碼、面額與使用次數</p>
+                    </div>
+                    <form onsubmit="handleCreateCode(event)" class="space-y-4">
+                        <div>
+                            <label
+                                class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">代碼</label>
+                            <input type="text" name="code" required
+                                class="w-full bg-white border border-gray-300 rounded px-4 py-2 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">面額</label>
+                                <input type="number" name="value" value="100" required
+                                    class="w-full bg-white border border-gray-300 rounded px-4 py-2 focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label
+                                    class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">使用次數</label>
+                                <input type="number" name="max_uses" value="1" min="1" required
+                                    class="w-full bg-white border border-gray-300 rounded px-4 py-2 focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                        <button type="submit"
+                            class="w-full mt-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-bold transition-colors">確認新增代碼</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="w-full lg:w-2/3">
+                <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                    <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                        <h3 class="font-bold text-lg text-gray-800">代碼列表</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left bg-white">
+                            <thead
+                                class="bg-gray-100 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
+                                <tr>
+                                    <th class="px-6 py-3 font-semibold">代碼內容</th>
+                                    <th class="px-6 py-3 font-semibold">面額</th>
+                                    <th class="px-6 py-3 font-semibold">使用進度</th>
+                                    <th class="px-6 py-3 font-semibold">狀態</th>
+                                    <th class="px-6 py-3 font-semibold text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="codes-list" class="divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users View -->
+        <div id="view-users" class="hidden w-full">
+            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                    <h3 class="font-bold text-lg text-gray-800">會員管理</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left bg-white">
+                        <thead
+                            class="bg-gray-100 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
+                            <tr>
+                                <th class="px-6 py-3 font-semibold">ID</th>
+                                <th class="px-6 py-3 font-semibold">使用者名稱</th>
+                                <th class="px-6 py-3 font-semibold">目前權限</th>
+                                <th class="px-6 py-3 font-semibold">錢包餘額</th>
+                                <th class="px-6 py-3 font-semibold text-right">權限操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-list" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!Auth.checkAuth()) return;
+            const user = Auth.getUser();
+            if (user.role !== 'admin') {
+                alert('需要管理員權限');
+                window.location.href = 'index.html';
+                return;
+            }
+            fetchCodes();
+            fetchUsers();
+        });
+
+        function switchTab(tab) {
+            document.getElementById('view-codes').classList.toggle('hidden', tab !== 'codes');
+            document.getElementById('view-users').classList.toggle('hidden', tab !== 'users');
+            document.getElementById('view-codes').classList.toggle('flex', tab === 'codes');
+            document.getElementById('view-users').classList.toggle('block', tab === 'users'); // default block for tables
+
+            const t1 = document.getElementById('tab-codes');
+            const t2 = document.getElementById('tab-users');
+            if (tab === 'codes') {
+                t1.className = 'pb-3 text-sm font-bold tracking-wide transition-colors text-blue-600 border-b-2 border-blue-600';
+                t2.className = 'pb-3 text-sm font-bold tracking-wide transition-colors text-gray-500 hover:text-gray-700';
+            } else {
+                t1.className = 'pb-3 text-sm font-bold tracking-wide transition-colors text-gray-500 hover:text-gray-700';
+                t2.className = 'pb-3 text-sm font-bold tracking-wide transition-colors text-blue-600 border-b-2 border-blue-600';
+            }
+        }
+
+        async function fetchCodes() {
+            const user = Auth.getUser();
+            try {
+                const data = await fetchApi(`/admin_codes.php?admin_id=${user.user_id}`);
+                if (Array.isArray(data)) renderCodes(data);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function fetchUsers() {
+            const user = Auth.getUser();
+            try {
+                const data = await fetchApi(`/admin_users.php?admin_id=${user.user_id}`);
+                if (Array.isArray(data)) renderUsers(data);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function renderCodes(list) {
+            const tbody = document.getElementById('codes-list');
+            tbody.innerHTML = list.map(c => {
+                const isFull = (c.current_uses || 0) >= (c.max_uses || 1);
+                return `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 font-mono text-sm text-gray-700 font-bold">${c.code}</td>
+                        <td class="px-6 py-4"><span class="text-green-600 font-bold">${Number(c.value).toFixed(0)}</span></td>
+                        <td class="px-6 py-4"><span class="text-xs text-gray-500 font-mono">${c.current_uses || 0}/${c.max_uses || 1}</span></td>
+                         <td class="px-6 py-4">
+                            ${isFull ? '<span class="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-red-100 text-red-600">FULL</span>' : '<span class="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-green-100 text-green-600">ACTIVE</span>'}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                             <button onclick="deleteCode(${c.code_id})" class="text-gray-400 hover:text-red-600 transition-colors">刪除</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderUsers(list) {
+            const tbody = document.getElementById('users-list');
+            tbody.innerHTML = list.map(u => {
+                let roleBadge = '';
+                if (u.role === 'admin') roleBadge = '<span class="text-yellow-600 font-bold text-xs uppercase bg-yellow-100 px-2 py-1 rounded">Admin</span>';
+                else if (u.role === 'seller') roleBadge = '<span class="text-purple-600 font-bold text-xs uppercase bg-purple-100 px-2 py-1 rounded">Seller</span>';
+                else roleBadge = '<span class="text-gray-600 font-bold text-xs uppercase bg-gray-100 px-2 py-1 rounded">Buyer</span>';
+
+                let actionBtn = '';
+                if (u.role !== 'admin') {
+                    if (u.role !== 'seller') {
+                        actionBtn = `<button onclick="updateRole(${u.user_id}, 'seller')" class="text-xs px-2 py-1 rounded bg-white hover:bg-purple-50 text-purple-600 border border-purple-200">設為賣家</button>`;
+                    } else {
+                        actionBtn = `<button onclick="updateRole(${u.user_id}, 'user')" class="text-xs px-2 py-1 rounded bg-white hover:bg-gray-50 text-gray-500 border border-gray-200">取消賣家</button>`;
+                    }
+                }
+
+                return `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 text-sm text-gray-500">#${u.user_id}</td>
+                         <td class="px-6 py-4">
+                            <div class="text-gray-800 font-medium">${u.username}</div>
+                            <div class="text-xs text-gray-500">${u.email}</div>
+                        </td>
+                        <td class="px-6 py-4">${roleBadge}</td>
+                        <td class="px-6 py-4 text-gray-800 font-mono">${Number(u.wallet_balance).toFixed(0)}</td>
+                         <td class="px-6 py-4 text-right">${actionBtn}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function handleCreateCode(e) {
+            e.preventDefault();
+            const form = e.target;
+            const user = Auth.getUser();
+            try {
+                await fetchApi('/admin_codes.php', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        admin_id: user.user_id,
+                        code: form.code.value,
+                        value: form.value.value,
+                        max_uses: form.max_uses.value
+                    })
+                });
+                form.reset();
+                form.value.value = 100;
+                form.max_uses.value = 1;
+                fetchCodes();
+            } catch (err) {
+                alert('建立失敗');
+            }
+        }
+
+        async function deleteCode(id) {
+            if (!confirm('確認刪除?')) return;
+            const user = Auth.getUser();
+            try {
+                await fetchApi(`/admin_codes.php?admin_id=${user.user_id}&code_id=${id}`, {
+                    method: 'DELETE'
+                });
+                fetchCodes();
+            } catch (err) {
+                alert('刪除失敗');
+            }
+        }
+
+        async function updateRole(targetId, newRole) {
+            if (!confirm('確認變更權限?')) return;
+            const user = Auth.getUser();
+            try {
+                await fetchApi(`/admin_users.php?admin_id=${user.user_id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ user_id: targetId, role: newRole })
+                });
+                fetchUsers();
+            } catch (err) {
+                alert('變更失敗');
+            }
+        }
+
+    </script>
+</body>
+
+</html>

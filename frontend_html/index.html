@@ -1,0 +1,233 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hey!Code</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/components.js"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-900">
+    <div id="navbar-container"></div>
+
+    <main class="w-full px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+        <h1 class="text-2xl font-bold mb-8 text-gray-800">所有商品</h1>
+        <div id="product-grid"
+            class="grid grid-cols-1 gap-y-8 gap-x-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            <!-- Products will be loaded here -->
+            <p class="text-gray-500 col-span-full text-center">載入中...</p>
+        </div>
+    </main>
+
+    <!-- Cart Modal -->
+    <div id="cart-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/50">
+        <div class="bg-white rounded-lg max-w-md w-full p-6 shadow-xl flex flex-col max-h-[80vh]">
+            <h2 class="text-xl font-bold mb-4 flex-shrink-0 border-b pb-2">您的購物車</h2>
+            <div id="cart-items" class="flex-1 overflow-y-auto mb-4 space-y-3">
+                <!-- Cart items here -->
+            </div>
+            <div class="flex justify-end gap-3 flex-shrink-0 pt-4 border-t">
+                <button onclick="closeCart()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">關閉</button>
+                <div id="checkout-btn-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Detail Modal -->
+    <div id="product-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/50"
+        onclick="closeProductModal()">
+        <div class="bg-white rounded-lg max-w-2xl w-full p-0 shadow-2xl overflow-hidden flex flex-col md:flex-row"
+            onclick="event.stopPropagation()">
+            <div class="w-full md:w-1/2 aspect-square md:aspect-auto bg-gray-100">
+                <img id="modal-img" src="" alt="" class="w-full h-full object-cover">
+            </div>
+            <div class="p-6 flex flex-col justify-between w-full md:w-1/2">
+                <div>
+                    <h2 id="modal-title" class="text-2xl font-bold mb-2 text-gray-900"></h2>
+                    <p id="modal-price" class="text-blue-600 text-xl font-bold mb-4"></p>
+                    <p id="modal-desc" class="text-gray-600 leading-relaxed mb-6"></p>
+                    <div id="modal-stock" class="text-sm text-gray-500 mb-4"></div>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="closeProductModal()"
+                        class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 text-gray-700">關閉</button>
+                    <button id="modal-add-btn"
+                        class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium">加入購物車</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentProducts = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderNavbar();
+            fetchProducts();
+
+            // Re-render Navbar if auth state changes (though simple refresh is expected for this MVP)
+            const openCartBtn = document.querySelector('button[onclick="onOpenCart"]');
+            // We need to attach the cart open handler to the navbar button dynamically or global scope
+        });
+
+        // Global function for Navbar to call
+        window.onOpenCart = function () {
+            fetchCart();
+            document.getElementById('cart-modal').classList.remove('hidden');
+            document.getElementById('cart-modal').classList.add('flex');
+        };
+
+        function closeCart() {
+            document.getElementById('cart-modal').classList.add('hidden');
+            document.getElementById('cart-modal').classList.remove('flex');
+        }
+
+        async function fetchProducts() {
+            try {
+                const products = await fetchApi('/products.php');
+                currentProducts = products;
+                const grid = document.getElementById('product-grid');
+                grid.innerHTML = products.map(p => renderProductCard(p)).join('');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('product-grid').innerHTML = '<p class="text-red-500 col-span-full">無法載入商品</p>';
+            }
+        }
+
+        async function addToCart(productId) {
+            if (!Auth.isAuthenticated()) {
+                window.location.href = 'login.html';
+                return;
+            }
+            const user = Auth.getUser();
+            try {
+                await fetchApi('/cart.php', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        user_id: user.user_id,
+                        product_id: productId,
+                        quantity: 1
+                    })
+                });
+                alert('已加入購物車');
+                if (window.updateNavbarBadges) {
+                    window.updateNavbarBadges();
+                }
+            } catch (err) {
+                alert('加入失敗: ' + err.message);
+            }
+        }
+
+        async function fetchCart() {
+            if (!Auth.isAuthenticated()) return;
+            const user = Auth.getUser();
+            const container = document.getElementById('cart-items');
+            container.innerHTML = '載入中...';
+
+            try {
+                const data = await fetchApi(`/cart.php?user_id=${user.user_id}`);
+                const items = data.items || [];
+
+                if (items.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-center py-8">購物車是空的</p>';
+                    document.getElementById('checkout-btn-container').innerHTML = '';
+                    return;
+                }
+
+                container.innerHTML = items.map(item => `
+                    <div class="flex justify-between items-center bg-gray-50 p-3 rounded border border-gray-200">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-gray-200 rounded flex-shrink-0"></div>
+                            <div>
+                                <p class="font-bold text-sm text-gray-800">${item.name}</p>
+                                <p class="text-xs text-gray-500">數量: ${item.quantity}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-blue-600">NT$ ${Number(item.price * item.quantity).toFixed(0)}</span>
+                            <button onclick="removeCartItem(${item.cart_item_id})" class="text-red-500 hover:text-red-700 text-xs px-2 py-1">移除</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                const total = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+                document.getElementById('checkout-btn-container').innerHTML = `
+                    <button onclick="handleCheckout()" class="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition-colors">
+                        結帳 (NT$ ${total.toFixed(0)})
+                    </button>
+                `;
+
+            } catch (err) {
+                container.innerHTML = '<p class="text-red-500">載入失敗</p>';
+            }
+        }
+
+        async function removeCartItem(cartItemId) {
+            const user = Auth.getUser();
+            try {
+                await fetchApi(`/cart.php?user_id=${user.user_id}&cart_item_id=${cartItemId}`, {
+                    method: 'DELETE'
+                });
+                fetchCart();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function handleCheckout() {
+            const user = Auth.getUser();
+            fetchApi('/orders.php', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: user.user_id, shipping_address: "123 Main St" })
+            }).then(d => {
+                if (d.order_id) {
+                    alert('訂單已建立！編號: ' + d.order_id);
+                    closeCart();
+                    fetchProducts(); // Update stock visually if needed
+                } else {
+                    alert('下單失敗: ' + (d.error || 'Unknown error'));
+                }
+            }).catch(e => alert('Error: ' + e.message));
+        }
+
+        // Product Modal Logic
+        window.openProductModal = function (product) {
+            // Because we pass the object via JSON.stringify in HTML, it might lose some fields if special chars. 
+            // Ideally we'd look it up by ID from currentProducts, but this is okay for now.
+
+            const modal = document.getElementById('product-modal');
+            const img = document.getElementById('modal-img');
+
+            // Re-find full object to be safe or use passed one
+            const p = currentProducts.find(x => x.product_id == product.product_id) || product;
+
+            img.src = p.image_url ? `/1208/${p.image_url}` : "https://via.placeholder.com/600x600";
+            document.getElementById('modal-title').textContent = p.name;
+            document.getElementById('modal-price').textContent = `NT$ ${Number(p.price).toFixed(0)}`;
+            document.getElementById('modal-desc').textContent = p.description || "尚無商品描述...";
+            document.getElementById('modal-stock').textContent = `庫存: ${p.stock_quantity}`;
+
+            const btn = document.getElementById('modal-add-btn');
+            btn.onclick = () => {
+                addToCart(p.product_id);
+                closeProductModal();
+            };
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        window.closeProductModal = function () {
+            const modal = document.getElementById('product-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    </script>
+</body>
+
+</html>

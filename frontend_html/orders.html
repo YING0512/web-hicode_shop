@@ -1,0 +1,207 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的訂單 - Hey!Code</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/components.js"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-900">
+    <div id="navbar-container"></div>
+
+    <main class="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+        <h1 class="text-2xl font-bold mb-8 text-gray-800">我的訂單</h1>
+
+        <!-- Status Tabs -->
+        <div class="flex gap-6 border-b border-gray-200 mb-8 overflow-x-auto" id="status-tabs">
+            <button onclick="setFilter('ALL')"
+                class="filter-btn pb-3 px-1 text-sm font-bold border-b-2 text-blue-600 border-blue-600"
+                data-status="ALL">全部訂單</button>
+            <button onclick="setFilter('PENDING')"
+                class="filter-btn pb-3 px-1 text-sm font-bold text-gray-500 hover:text-gray-700 border-transparent border-b-2"
+                data-status="PENDING">待處理</button>
+            <button onclick="setFilter('COMPLETED')"
+                class="filter-btn pb-3 px-1 text-sm font-bold text-gray-500 hover:text-gray-700 border-transparent border-b-2"
+                data-status="COMPLETED">已完成</button>
+            <button onclick="setFilter('CANCELLED')"
+                class="filter-btn pb-3 px-1 text-sm font-bold text-gray-500 hover:text-gray-700 border-transparent border-b-2"
+                data-status="CANCELLED">已取消</button>
+        </div>
+
+        <div id="orders-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <p class="text-center w-full col-span-full py-8 text-gray-500">載入中...</p>
+        </div>
+    </main>
+
+    <!-- Cancel Modal -->
+    <div id="cancel-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 hidden">
+        <div class="bg-white border border-gray-200 rounded-lg max-w-md w-full p-6 shadow-xl">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">取消訂單</h3>
+            <p class="text-gray-600 mb-4 text-sm">請輸入取消訂單的原因，以便賣家了解狀況。</p>
+
+            <textarea id="cancel-reason"
+                class="w-full bg-white border border-gray-300 rounded p-3 text-gray-800 focus:outline-none focus:border-blue-500 transition-colors h-32 mb-6"
+                placeholder="例如：改變心意、訂錯商品..."></textarea>
+
+            <div class="flex gap-3 justify-end">
+                <button onclick="closeCancelModal()"
+                    class="px-4 py-2 rounded text-gray-600 hover:bg-gray-100 transition-colors">暫不取消</button>
+                <button onclick="submitCancel()"
+                    class="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-bold transition-colors">確定取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allOrders = [];
+        let currentFilter = 'ALL';
+        let selectedOrderId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!Auth.checkAuth()) return;
+            renderNavbar();
+            fetchOrders();
+        });
+
+        async function fetchOrders() {
+            const user = Auth.getUser();
+            try {
+                const orders = await fetchApi(`/orders.php?user_id=${user.user_id}`);
+                allOrders = Array.isArray(orders) ? orders : [];
+                renderOrders();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('orders-container').innerHTML = '<p class="text-red-500 col-span-full text-center">無法載入訂單</p>';
+            }
+        }
+
+        function setFilter(status) {
+            currentFilter = status;
+
+            // Update UI tabs
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.dataset.status === status) {
+                    btn.classList.add('text-blue-600', 'border-blue-600');
+                    btn.classList.remove('text-gray-500', 'text-gray-700', 'border-transparent');
+                } else {
+                    btn.classList.remove('text-blue-600', 'border-blue-600');
+                    btn.classList.add('text-gray-500', 'hover:text-gray-700', 'border-transparent');
+                }
+            });
+
+            renderOrders();
+        }
+
+        function renderOrders() {
+            const container = document.getElementById('orders-container');
+            const filtered = allOrders.filter(o => currentFilter === 'ALL' || o.status === currentFilter);
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="text-center py-20 col-span-full"><p class="text-gray-500 text-lg">此分類下尚無訂單</p></div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(order => {
+                const orderIdDisplay = `訂單 #${new Date(order.order_date).toISOString().slice(2, 10).replace(/-/g, '')}${String(order.order_id).padStart(4, '0')}`;
+
+                let statusClass = 'bg-gray-100 text-gray-700';
+                let statusText = order.status;
+                if (statusText === 'PENDING') { statusText = '待處理'; statusClass = 'bg-yellow-100 text-yellow-700'; }
+                else if (statusText === 'COMPLETED') { statusText = '已完成'; statusClass = 'bg-green-100 text-green-700'; }
+                else if (statusText === 'CANCELLED') { statusText = '已取消'; statusClass = 'bg-red-100 text-red-700'; }
+
+                let itemsHtml = '';
+                try {
+                    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                    if (items) {
+                        itemsHtml = items.map(item => `
+                            <div class="flex gap-4 py-3 border-b border-gray-200 last:border-0">
+                                <div class="w-16 h-16 bg-white border border-gray-200 rounded flex-shrink-0 overflow-hidden">
+                                    <img src="${item.image_url ? `/1208/${item.image_url}` : '#'}" class="w-full h-full object-cover">
+                                </div>
+                                <div class="flex-1 flex justify-between items-center">
+                                    <div>
+                                        <p class="text-gray-800 font-medium">${item.name}</p>
+                                        <p class="text-gray-500 text-sm">x ${item.quantity}</p>
+                                    </div>
+                                    <span class="text-gray-700">NT$ ${Number(item.price).toFixed(0)}</span>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                } catch (e) { console.error(e); }
+
+                return `
+                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                            <div>
+                                <div class="flex items-center gap-3 mb-1">
+                                    <p class="text-lg font-bold text-gray-800">${orderIdDisplay}</p>
+                                    <span class="px-2 py-0.5 rounded text-xs font-bold ${statusClass}">${statusText}</span>
+                                </div>
+                                <p class="text-gray-500 text-sm">${new Date(order.order_date).toLocaleString()}</p>
+                            </div>
+                            <div class="mt-4 sm:mt-0 text-right">
+                                <p className="text-2xl font-bold text-gray-900">NT$ ${Number(order.total_amount).toFixed(0)}</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-50 rounded p-4 mb-4 border border-gray-100">
+                            ${itemsHtml}
+                        </div>
+
+                        <div class="flex justify-between items-center border-t border-gray-100 pt-4">
+                            <div>
+                                ${order.status === 'CANCELLED' && order.cancellation_reason ? `<p class="text-sm text-red-600"><span class="font-bold">取消原因:</span> ${order.cancellation_reason}</p>` : ''}
+                            </div>
+                            <div>
+                                ${order.status === 'PENDING' ? `<button onclick="openCancelModal(${order.order_id})" class="text-sm px-4 py-2 rounded border border-red-200 text-red-600 hover:bg-red-50 transition-colors">取消訂單</button>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openCancelModal(orderId) {
+            selectedOrderId = orderId;
+            document.getElementById('cancel-reason').value = '';
+            document.getElementById('cancel-modal').classList.remove('hidden');
+        }
+
+        function closeCancelModal() {
+            document.getElementById('cancel-modal').classList.add('hidden');
+            selectedOrderId = null;
+        }
+
+        async function submitCancel() {
+            const reason = document.getElementById('cancel-reason').value;
+            if (!reason.trim()) { alert('請輸入取消原因'); return; }
+
+            const user = Auth.getUser();
+            try {
+                await fetchApi('/orders.php', {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        order_id: selectedOrderId,
+                        user_id: user.user_id,
+                        action: 'cancel',
+                        reason: reason
+                    })
+                });
+                alert('訂單已取消');
+                closeCancelModal();
+                fetchOrders();
+            } catch (err) {
+                alert('取消失敗: ' + err.message);
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,325 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>賣家中心 - Hey!Code</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/components.js"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-900">
+    <div id="navbar-container"></div>
+
+    <main class="min-h-screen pt-24 pb-12 px-4">
+        <div class="max-w-[1920px] mx-auto">
+            <!-- Controls -->
+            <div class="flex justify-between items-center mb-8">
+                <div class="flex gap-4">
+                    <div class="flex bg-gray-200 rounded p-0.5 border border-gray-300">
+                        <button onclick="switchView('products')" id="btn-view-products"
+                            class="px-3 py-1 rounded transition-colors text-sm font-medium bg-white text-gray-900 shadow-sm">商品管理</button>
+                        <button onclick="switchView('orders')" id="btn-view-orders"
+                            class="px-3 py-1 rounded transition-colors text-sm font-medium text-gray-500 hover:text-gray-700">訂單管理</button>
+                    </div>
+                </div>
+                <a href="seller-form.html"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors text-sm whitespace-nowrap">+
+                    新增商品</a>
+            </div>
+
+            <!-- Products View -->
+            <div id="view-products" class="block">
+                <div id="products-grid"
+                    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                    <p class="col-span-full text-center text-gray-500 py-8">載入中...</p>
+                </div>
+            </div>
+
+            <!-- Orders View -->
+            <div id="view-orders" class="hidden">
+                <div class="flex gap-4 border-b border-gray-200 mb-6 pb-4 overflow-x-auto">
+                    <button onclick="setOrderFilter('ALL')"
+                        class="order-filter-btn text-sm font-bold pb-1 whitespace-nowrap px-2 text-blue-600 border-b-2 border-blue-600"
+                        data-status="ALL">全部訂單</button>
+                    <button onclick="setOrderFilter('PENDING')"
+                        class="order-filter-btn text-sm font-bold pb-1 whitespace-nowrap px-2 text-gray-500 hover:text-gray-700"
+                        data-status="PENDING">待處理</button>
+                    <button onclick="setOrderFilter('COMPLETED')"
+                        class="order-filter-btn text-sm font-bold pb-1 whitespace-nowrap px-2 text-gray-500 hover:text-gray-700"
+                        data-status="COMPLETED">已完成</button>
+                    <button onclick="setOrderFilter('CANCELLED')"
+                        class="order-filter-btn text-sm font-bold pb-1 whitespace-nowrap px-2 text-gray-500 hover:text-gray-700"
+                        data-status="CANCELLED">已取消</button>
+                </div>
+                <div id="orders-grid" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <p class="col-span-full text-center text-gray-500 py-8">載入中...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let myProducts = [];
+        let myOrders = [];
+        let currentOrderFilter = 'ALL';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!Auth.checkAuth()) return;
+            const user = Auth.getUser();
+            if (user.role !== 'seller' && user.role !== 'admin') {
+                alert('權限不足');
+                window.location.href = 'index.html';
+                return;
+            }
+            renderNavbar();
+            fetchMyProducts();
+        });
+
+        function switchView(view) {
+            document.getElementById('view-products').className = view === 'products' ? 'block' : 'hidden';
+            document.getElementById('view-orders').className = view === 'orders' ? 'block' : 'hidden';
+
+            document.getElementById('btn-view-products').className = `px-3 py-1 rounded transition-colors text-sm font-medium ${view === 'products' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`;
+            document.getElementById('btn-view-orders').className = `px-3 py-1 rounded transition-colors text-sm font-medium ${view === 'orders' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`;
+
+            if (view === 'products') fetchMyProducts();
+            else fetchMyOrders();
+        }
+
+        async function fetchMyProducts() {
+            const user = Auth.getUser();
+            try {
+                const data = await fetchApi(`/products.php?seller_id=${user.user_id}`);
+                myProducts = Array.isArray(data) ? data : [];
+                renderProducts();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderProducts() {
+            const grid = document.getElementById('products-grid');
+            if (myProducts.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-20">暫無商品</div>';
+                return;
+            }
+
+            grid.innerHTML = myProducts.map(product => `
+                <div class="bg-white border border-gray-200 rounded-lg overflow-hidden p-4 group shadow-sm hover:shadow-md transition-shadow">
+                    <div class="aspect-square w-full rounded overflow-hidden bg-gray-100 mb-4 relative">
+                        <img
+                            src="${product.image_url ? `/1208/${product.image_url}` : 'https://via.placeholder.com/400x400'}"
+                            alt="${product.name}"
+                            class="w-full h-full object-cover transition-transform group-hover:scale-105"
+                        />
+                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
+                            <p class="text-xs text-white line-clamp-6">${product.description || ''}</p>
+                        </div>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mb-1">${product.name}</h3>
+                    <p class="text-blue-600 font-bold mb-2">NT$ ${Number(product.price).toFixed(0)}</p>
+                    <div class="flex justify-between items-center text-sm text-gray-500 mb-4">
+                        <span>銷量: ${product.sales_count || 0}</span>
+                    </div>
+                    <div class="mb-4 flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-200">
+                        <div class="flex items-center gap-2">
+                             <div class="w-2 h-2 rounded-full ${product.status === 'on_shelf' ? 'bg-green-500' : 'bg-gray-400'}"></div>
+                             <span class="text-xs font-bold ${product.status === 'on_shelf' ? 'text-green-600' : 'text-gray-500'}">
+                                ${product.status === 'on_shelf' ? '上架中' : '已下架'}
+                             </span>
+                        </div>
+                         <button
+                            onclick="handleToggleStatus(${product.product_id}, '${product.status}', ${product.stock_quantity})"
+                            class="text-xs px-3 py-1.5 rounded font-medium transition-all duration-200 ${product.status === 'on_shelf' ? 'bg-gray-200 text-gray-600 hover:bg-red-100 hover:text-red-600' : 'bg-green-600 text-white hover:bg-green-500'}"
+                        >
+                            ${product.status === 'on_shelf' ? '下架' : '上架販售'}
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                         <a href="seller-form.html?id=${product.product_id}" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded transition-colors text-center">編輯</a>
+                         <button onclick="handleDeleteProduct(${product.product_id})" class="px-4 bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 rounded transition-colors">刪除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function handleToggleStatus(productId, currentStatus, stock) {
+            const newStatus = currentStatus === 'on_shelf' ? 'off_shelf' : 'on_shelf';
+            if (newStatus === 'on_shelf' && stock <= 0) {
+                if (confirm('無法直接上架：目前庫存為 0。\n\n是否前往編輯頁面補充庫存？')) {
+                    window.location.href = `seller-form.html?id=${productId}`;
+                }
+                return;
+            }
+
+            const user = Auth.getUser();
+            try {
+                await fetchApi('/products.php', {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        product_id: productId,
+                        seller_id: user.user_id,
+                        status: newStatus,
+                    })
+                });
+                fetchMyProducts();
+            } catch (err) {
+                alert('更新失敗');
+            }
+        }
+
+        async function handleDeleteProduct(productId) {
+            if (!confirm('確定要刪除這個商品嗎？此動作無法復原。')) return;
+            const user = Auth.getUser();
+            try {
+                await fetchApi(`/products.php?id=${productId}&seller_id=${user.user_id}`, { method: 'DELETE' });
+                fetchMyProducts();
+            } catch (err) {
+                alert('刪除失敗');
+            }
+        }
+
+        /* Order Management */
+        async function fetchMyOrders() {
+            const user = Auth.getUser();
+            try {
+                const data = await fetchApi(`/orders.php?seller_id=${user.user_id}`);
+                myOrders = Array.isArray(data) ? data : [];
+                renderOrders();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function setOrderFilter(status) {
+            currentOrderFilter = status;
+            document.querySelectorAll('.order-filter-btn').forEach(btn => {
+                if (btn.dataset.status === status) {
+                    btn.classList.add('text-blue-600', 'border-blue-600', 'border-b-2');
+                    btn.classList.remove('text-gray-500', 'text-gray-700');
+                } else {
+                    btn.classList.remove('text-blue-600', 'border-blue-600', 'border-b-2');
+                    btn.classList.add('text-gray-500', 'hover:text-gray-700');
+                }
+            });
+            renderOrders();
+        }
+
+        function renderOrders() {
+            const grid = document.getElementById('orders-grid');
+            const filtered = myOrders.filter(o => {
+                if (currentOrderFilter === 'ALL') return true;
+                return o.status === currentOrderFilter;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-20">暫無訂單</div>';
+                return;
+            }
+
+            grid.innerHTML = filtered.map(order => {
+                const orderIdDisplay = `訂單 #${new Date(order.order_date).toISOString().slice(2, 10).replace(/-/g, '')}${String(order.order_id).padStart(4, '0')}`;
+                // Status rendering same as orders.html, but with Seller actions
+                let statusClass = 'bg-gray-100 text-gray-700';
+                let statusText = order.status;
+                if (statusText === 'PENDING') { statusText = '待處理'; statusClass = 'bg-yellow-100 text-yellow-700'; }
+                else if (statusText === 'COMPLETED') { statusText = '已完成'; statusClass = 'bg-green-100 text-green-700'; }
+                else if (statusText === 'CANCELLED') { statusText = '已取消'; statusClass = 'bg-red-100 text-red-700'; }
+
+                let itemsHtml = '';
+                try {
+                    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                    if (items) {
+                        itemsHtml = items.map(item => `
+                             <div class="flex gap-4 py-3 border-b border-gray-200 last:border-0">
+                                <div class="w-16 h-16 bg-white border border-gray-200 rounded flex-shrink-0 overflow-hidden">
+                                     <img src="${item.image_url ? `/1208/${item.image_url}` : '#'}" class="w-full h-full object-cover">
+                                </div>
+                                <div class="flex-1 flex justify-between items-center">
+                                    <div>
+                                        <p class="text-gray-800 font-medium">${item.name}</p>
+                                        <p class="text-gray-500 text-sm">x ${item.quantity}</p>
+                                    </div>
+                                    <span class="text-gray-600">NT$ ${Number(item.price).toFixed(0)}</span>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                } catch (e) { }
+
+                return `
+                     <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                             <div>
+                                <div class="flex items-center gap-3 mb-1">
+                                    <p class="text-lg font-bold text-gray-800">${orderIdDisplay}</p>
+                                    <span class="px-2 py-0.5 rounded text-xs font-bold ${statusClass}">${statusText}</span>
+                                </div>
+                                <p class="text-gray-500 text-sm">${new Date(order.order_date).toLocaleString()}</p>
+                            </div>
+                             <div class="mt-4 sm:mt-0 text-right">
+                                <p class="text-2xl font-bold text-gray-900">NT$ ${Number(order.total_amount).toFixed(0)}</p>
+                            </div>
+                        </div>
+                         <div class="bg-gray-50 rounded p-4 mb-4 border border-gray-100">
+                            ${itemsHtml}
+                        </div>
+                        <div class="flex justify-between items-center border-t border-gray-100 pt-4">
+                             <div>
+                                ${order.status === 'CANCELLED' && order.cancellation_reason ? `<p class="text-sm text-red-600"><span class="font-bold">取消原因:</span> ${order.cancellation_reason}</p>` : ''}
+                            </div>
+                             <div class="flex gap-3">
+                                ${order.status === 'PENDING' ? `
+                                     <button onclick="handleCancelOrder(${order.order_id})" class="text-sm px-4 py-2 rounded border border-red-200 text-red-600 hover:bg-red-50 transition-colors">取消訂單</button>
+                                     <button onclick="handleCompleteOrder(${order.order_id})" class="text-sm px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white font-bold transition-colors">完成訂單</button>
+                                ` : ''}
+                             </div>
+                        </div>
+                     </div>
+                `;
+            }).join('');
+        }
+
+        async function handleCancelOrder(orderId) {
+            const reason = prompt("請輸入取消原因:", "賣家無法出貨");
+            if (reason === null) return;
+            const user = Auth.getUser();
+            try {
+                await fetchApi('/orders.php', {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        order_id: orderId,
+                        user_id: user.user_id,
+                        action: 'cancel',
+                        reason: reason
+                    })
+                });
+                alert('訂單已取消');
+                fetchMyOrders();
+            } catch (e) {
+                alert('取消失敗');
+            }
+        }
+
+        async function handleCompleteOrder(orderId) {
+            try {
+                await fetchApi('/orders.php', {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        order_id: orderId,
+                        action: 'complete'
+                    })
+                });
+                fetchMyOrders();
+            } catch (e) {
+                alert('操作失敗');
+            }
+        }
+    </script>
+</body>
+
+</html>
