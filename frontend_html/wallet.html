@@ -5,17 +5,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的錢包 - Hey!Code</title>
+    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 JS 工具與元件 -->
     <script src="assets/js/api.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/components.js"></script>
 </head>
 
 <body class="bg-gray-50 text-gray-900">
+    <!-- 導覽列 -->
     <div id="navbar-container"></div>
 
     <main class="min-h-screen pt-24 pb-12 px-4">
         <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-sm border border-gray-200">
+            <!-- 餘額顯示 -->
             <div class="text-center mb-8">
                 <p class="text-gray-500 text-sm uppercase tracking-wider mb-2">目前餘額</p>
                 <h1 class="text-5xl font-bold text-yellow-600">
@@ -23,6 +27,7 @@
                 </h1>
             </div>
 
+            <!-- 儲值表單 -->
             <form id="wallet-form" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">儲值代碼</label>
@@ -30,7 +35,9 @@
                         class="w-full bg-white border border-gray-300 rounded px-4 py-2 focus:outline-none focus:border-blue-500 transition-colors text-center text-lg uppercase"
                         required />
                 </div>
+                <!-- 訊息提示區塊 -->
                 <div id="message" class="hidden p-3 rounded text-center text-sm"></div>
+
                 <button type="submit"
                     class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50">
                     立即儲值
@@ -40,12 +47,14 @@
     </main>
 
     <script>
+        // 初始化
         document.addEventListener('DOMContentLoaded', () => {
             if (!Auth.checkAuth()) return;
             renderNavbar();
             fetchBalance();
         });
 
+        // 查詢餘額
         async function fetchBalance() {
             const user = Auth.getUser();
             try {
@@ -58,6 +67,7 @@
             }
         }
 
+        // 提交儲值代碼
         document.getElementById('wallet-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
@@ -65,6 +75,7 @@
             const msgDiv = document.getElementById('message');
             const submitBtn = form.querySelector('button');
 
+            // 重置介面狀態
             msgDiv.classList.add('hidden');
             submitBtn.disabled = true;
             submitBtn.textContent = '處理中...';
@@ -72,17 +83,20 @@
             const user = Auth.getUser();
 
             try {
+                // 呼叫後端 API 進行兌換
                 const res = await fetchApi('/wallet.php', {
                     method: 'POST',
                     body: JSON.stringify({ user_id: user.user_id, code })
                 });
 
+                // 成功
                 msgDiv.textContent = `成功儲值: ${res.added_value} 代幣`;
                 msgDiv.className = 'p-3 rounded text-center text-sm bg-green-100 text-green-700';
                 msgDiv.classList.remove('hidden');
-                form.code.value = '';
-                fetchBalance();
+                form.code.value = ''; // 清空輸入框
+                fetchBalance(); // 更新餘額顯示
             } catch (err) {
+                // 失敗
                 msgDiv.textContent = `儲值失敗: ${err.message}`;
                 msgDiv.className = 'p-3 rounded text-center text-sm bg-red-100 text-red-700';
                 msgDiv.classList.remove('hidden');

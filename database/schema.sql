@@ -4,12 +4,12 @@ USE ecommerce_db;
 
 -- 1. User Table
 CREATE TABLE IF NOT EXISTS User (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    registration_date DATETIME DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+    user_id INT AUTO_INCREMENT PRIMARY KEY, -- 使用者編號,自動編號
+    username VARCHAR(50) NOT NULL UNIQUE, -- 使用者名稱,不可重複
+    email VARCHAR(100) NOT NULL UNIQUE, -- 使用者信箱,不可重複
+    password_hash VARCHAR(255) NOT NULL, -- 使用者密碼,存加密後雜湊值
+    registration_date DATETIME DEFAULT CURRENT_TIMESTAMP -- 使用者註冊日期
+) ENGINE=InnoDB; -- 使用InnoDB引擎
 
 -- 2. Category Table
 CREATE TABLE IF NOT EXISTS Category (
@@ -21,19 +21,23 @@ CREATE TABLE IF NOT EXISTS Category (
 
 -- 3. Product Table
 CREATE TABLE IF NOT EXISTS Product (
-    product_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    price DECIMAL(10, 2) NOT NULL,
-    stock_quantity INT NOT NULL DEFAULT 0,
-    category_id INT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    product_id INT AUTO_INCREMENT PRIMARY KEY,      -- 商品 ID (主鍵, 自動遞增)
+    name VARCHAR(255) NOT NULL,                     -- 商品名稱 (必填)
+    description TEXT,                               -- 商品描述 details
+    price DECIMAL(10, 2) NOT NULL,                  -- 商品價格 (最多 10 位數, 包含 2 位小數)
+    stock_quantity INT NOT NULL DEFAULT 0,          -- 庫存數量 (預設為 0)
+    category_id INT,                                -- 分類 ID (外鍵)
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,  -- 建立時間 (預設為當前時間)
+    
+    -- 外鍵關聯到 Category 表，當分類被刪除時，將此欄位設為 NULL (保留商品)
     FOREIGN KEY (category_id) REFERENCES Category(category_id) ON DELETE SET NULL,
-    -- Index for filtering
-    INDEX idx_price (price),
-    INDEX idx_category (category_id),
-    -- Fulltext index for search
-    FULLTEXT INDEX idx_search (name, description)
+    
+    -- Index for filtering (過濾用索引)
+    INDEX idx_price (price),                        -- 價格索引 (加快依價格查詢/排序的速度)
+    INDEX idx_category (category_id),               -- 分類索引 (加快依分類篩選商品的速度)
+    
+    -- Fulltext index for search (全文搜尋索引)
+    FULLTEXT INDEX idx_search (name, description)   -- 支援名稱與描述的全文關鍵字搜尋
 ) ENGINE=InnoDB;
 
 -- 4. Cart Table

@@ -5,7 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>後台管理系統 - Hey!Code</title>
+    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 JS 工具與元件 -->
     <script src="assets/js/api.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/components.js"></script>
@@ -13,7 +15,7 @@
 
 <body class="bg-gray-50 text-gray-900">
 
-    <!-- Admin Header -->
+    <!-- 後台頂部 Header -->
     <div
         class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
         <div class="flex items-center gap-4">
@@ -28,7 +30,7 @@
             class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm text-gray-600 transition-colors">返回商店</a>
     </div>
 
-    <!-- Tab Navigation -->
+    <!-- 頁籤導航 (Tab Navigation) -->
     <div class="max-w-7xl mx-auto px-6 pt-8 pb-4">
         <div class="flex space-x-6 border-b border-gray-300">
             <button onclick="switchTab('codes')" id="tab-codes"
@@ -40,8 +42,9 @@
     </div>
 
     <div class="max-w-7xl mx-auto px-6 py-4">
-        <!-- Codes View -->
+        <!-- 1. 代碼管理檢視 (Codes View) -->
         <div id="view-codes" class="flex flex-col lg:flex-row gap-8">
+            <!-- 左側: 新增代碼表單 -->
             <div class="w-full lg:w-1/3">
                 <div class="bg-white border border-gray-200 p-6 rounded-lg shadow-sm sticky top-24">
                     <div class="mb-6">
@@ -75,6 +78,7 @@
                 </div>
             </div>
 
+            <!-- 右側: 代碼列表 -->
             <div class="w-full lg:w-2/3">
                 <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                     <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
@@ -99,12 +103,13 @@
             </div>
         </div>
 
-        <!-- Users View -->
+        <!-- 2. 會員管理檢視 (Users View) -->
         <div id="view-users" class="hidden w-full">
             <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                 <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
                     <h3 class="font-bold text-lg text-gray-800">會員管理</h3>
                 </div>
+                <!-- 會員列表 -->
                 <div class="overflow-x-auto">
                     <table class="w-full text-left bg-white">
                         <thead
@@ -125,9 +130,11 @@
     </div>
 
     <script>
+        // 初始化
         document.addEventListener('DOMContentLoaded', () => {
             if (!Auth.checkAuth()) return;
             const user = Auth.getUser();
+            // 嚴格檢查是否為管理員
             if (user.role !== 'admin') {
                 alert('需要管理員權限');
                 window.location.href = 'index.html';
@@ -137,12 +144,15 @@
             fetchUsers();
         });
 
+        // 切換分頁 (代碼/會員)
         function switchTab(tab) {
             document.getElementById('view-codes').classList.toggle('hidden', tab !== 'codes');
             document.getElementById('view-users').classList.toggle('hidden', tab !== 'users');
+            // 'flex' for layout of codes view
             document.getElementById('view-codes').classList.toggle('flex', tab === 'codes');
-            document.getElementById('view-users').classList.toggle('block', tab === 'users'); // default block for tables
+            document.getElementById('view-users').classList.toggle('block', tab === 'users');
 
+            // 更新頁籤樣式
             const t1 = document.getElementById('tab-codes');
             const t2 = document.getElementById('tab-users');
             if (tab === 'codes') {
@@ -154,21 +164,13 @@
             }
         }
 
+        // --- 代碼管理 API ---
+
         async function fetchCodes() {
             const user = Auth.getUser();
             try {
                 const data = await fetchApi(`/admin_codes.php?admin_id=${user.user_id}`);
                 if (Array.isArray(data)) renderCodes(data);
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        async function fetchUsers() {
-            const user = Auth.getUser();
-            try {
-                const data = await fetchApi(`/admin_users.php?admin_id=${user.user_id}`);
-                if (Array.isArray(data)) renderUsers(data);
             } catch (e) {
                 console.error(e);
             }
@@ -189,38 +191,6 @@
                         <td class="px-6 py-4 text-right">
                              <button onclick="deleteCode(${c.code_id})" class="text-gray-400 hover:text-red-600 transition-colors">刪除</button>
                         </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        function renderUsers(list) {
-            const tbody = document.getElementById('users-list');
-            tbody.innerHTML = list.map(u => {
-                let roleBadge = '';
-                if (u.role === 'admin') roleBadge = '<span class="text-yellow-600 font-bold text-xs uppercase bg-yellow-100 px-2 py-1 rounded">Admin</span>';
-                else if (u.role === 'seller') roleBadge = '<span class="text-purple-600 font-bold text-xs uppercase bg-purple-100 px-2 py-1 rounded">Seller</span>';
-                else roleBadge = '<span class="text-gray-600 font-bold text-xs uppercase bg-gray-100 px-2 py-1 rounded">Buyer</span>';
-
-                let actionBtn = '';
-                if (u.role !== 'admin') {
-                    if (u.role !== 'seller') {
-                        actionBtn = `<button onclick="updateRole(${u.user_id}, 'seller')" class="text-xs px-2 py-1 rounded bg-white hover:bg-purple-50 text-purple-600 border border-purple-200">設為賣家</button>`;
-                    } else {
-                        actionBtn = `<button onclick="updateRole(${u.user_id}, 'user')" class="text-xs px-2 py-1 rounded bg-white hover:bg-gray-50 text-gray-500 border border-gray-200">取消賣家</button>`;
-                    }
-                }
-
-                return `
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 text-sm text-gray-500">#${u.user_id}</td>
-                         <td class="px-6 py-4">
-                            <div class="text-gray-800 font-medium">${u.username}</div>
-                            <div class="text-xs text-gray-500">${u.email}</div>
-                        </td>
-                        <td class="px-6 py-4">${roleBadge}</td>
-                        <td class="px-6 py-4 text-gray-800 font-mono">${Number(u.wallet_balance).toFixed(0)}</td>
-                         <td class="px-6 py-4 text-right">${actionBtn}</td>
                     </tr>
                 `;
             }).join('');
@@ -260,6 +230,52 @@
             } catch (err) {
                 alert('刪除失敗');
             }
+        }
+
+        // --- 會員管理 API ---
+
+        async function fetchUsers() {
+            const user = Auth.getUser();
+            try {
+                const data = await fetchApi(`/admin_users.php?admin_id=${user.user_id}`);
+                if (Array.isArray(data)) renderUsers(data);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function renderUsers(list) {
+            const tbody = document.getElementById('users-list');
+            tbody.innerHTML = list.map(u => {
+                // 角色標籤渲染
+                let roleBadge = '';
+                if (u.role === 'admin') roleBadge = '<span class="text-yellow-600 font-bold text-xs uppercase bg-yellow-100 px-2 py-1 rounded">Admin</span>';
+                else if (u.role === 'seller') roleBadge = '<span class="text-purple-600 font-bold text-xs uppercase bg-purple-100 px-2 py-1 rounded">Seller</span>';
+                else roleBadge = '<span class="text-gray-600 font-bold text-xs uppercase bg-gray-100 px-2 py-1 rounded">Buyer</span>';
+
+                // 操作按鈕渲染
+                let actionBtn = '';
+                if (u.role !== 'admin') {
+                    if (u.role !== 'seller') {
+                        actionBtn = `<button onclick="updateRole(${u.user_id}, 'seller')" class="text-xs px-2 py-1 rounded bg-white hover:bg-purple-50 text-purple-600 border border-purple-200">設為賣家</button>`;
+                    } else {
+                        actionBtn = `<button onclick="updateRole(${u.user_id}, 'user')" class="text-xs px-2 py-1 rounded bg-white hover:bg-gray-50 text-gray-500 border border-gray-200">取消賣家</button>`;
+                    }
+                }
+
+                return `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 text-sm text-gray-500">#${u.user_id}</td>
+                         <td class="px-6 py-4">
+                            <div class="text-gray-800 font-medium">${u.username}</div>
+                            <div class="text-xs text-gray-500">${u.email}</div>
+                        </td>
+                        <td class="px-6 py-4">${roleBadge}</td>
+                        <td class="px-6 py-4 text-gray-800 font-mono">${Number(u.wallet_balance).toFixed(0)}</td>
+                         <td class="px-6 py-4 text-right">${actionBtn}</td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         async function updateRole(targetId, newRole) {

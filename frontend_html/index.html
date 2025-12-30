@@ -5,30 +5,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hey!Code</title>
+    <!-- 引入 Tailwind CSS (快速樣式庫) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入自訂的 JS 工具與元件 -->
     <script src="assets/js/api.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/components.js"></script>
 </head>
 
 <body class="bg-gray-50 text-gray-900">
+    <!-- 導覽列容器 (由 JavaScript 動態渲染) -->
     <div id="navbar-container"></div>
 
     <main class="w-full px-4 sm:px-6 lg:px-8 pt-24 pb-12">
         <h1 class="text-2xl font-bold mb-8 text-gray-800">所有商品</h1>
+        <!-- 商品列表容器 -->
         <div id="product-grid"
             class="grid grid-cols-1 gap-y-8 gap-x-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            <!-- Products will be loaded here -->
+            <!-- 這裡會由 JS 插入商品卡片 -->
             <p class="text-gray-500 col-span-full text-center">載入中...</p>
         </div>
     </main>
 
-    <!-- Cart Modal -->
+    <!-- 購物車 Modal (彈出視窗) -->
     <div id="cart-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/50">
         <div class="bg-white rounded-lg max-w-md w-full p-6 shadow-xl flex flex-col max-h-[80vh]">
             <h2 class="text-xl font-bold mb-4 flex-shrink-0 border-b pb-2">您的購物車</h2>
+            <!-- 購物車項目列表區域 -->
             <div id="cart-items" class="flex-1 overflow-y-auto mb-4 space-y-3">
-                <!-- Cart items here -->
+                <!-- 這裡會由 JS 插入購物車項目 -->
             </div>
             <div class="flex justify-end gap-3 flex-shrink-0 pt-4 border-t">
                 <button onclick="closeCart()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">關閉</button>
@@ -37,14 +42,16 @@
         </div>
     </div>
 
-    <!-- Product Detail Modal -->
+    <!-- 商品詳情 Modal (彈出視窗) -->
     <div id="product-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/50"
         onclick="closeProductModal()">
         <div class="bg-white rounded-lg max-w-2xl w-full p-0 shadow-2xl overflow-hidden flex flex-col md:flex-row"
             onclick="event.stopPropagation()">
+            <!-- 左側：商品圖片 -->
             <div class="w-full md:w-1/2 aspect-square md:aspect-auto bg-gray-100">
                 <img id="modal-img" src="" alt="" class="w-full h-full object-cover">
             </div>
+            <!-- 右側：商品資訊 -->
             <div class="p-6 flex flex-col justify-between w-full md:w-1/2">
                 <div>
                     <h2 id="modal-title" class="text-2xl font-bold mb-2 text-gray-900"></h2>
@@ -65,33 +72,35 @@
     <script>
         let currentProducts = [];
 
-        // Initialize
+        // 初始化：當頁面 DOM 載入完成後執行
         document.addEventListener('DOMContentLoaded', () => {
-            renderNavbar();
-            fetchProducts();
+            renderNavbar(); // 渲染導覽列
+            fetchProducts(); // 抓取商品列表
 
             // Re-render Navbar if auth state changes (though simple refresh is expected for this MVP)
             const openCartBtn = document.querySelector('button[onclick="onOpenCart"]');
-            // We need to attach the cart open handler to the navbar button dynamically or global scope
         });
 
-        // Global function for Navbar to call
+        // 打開購物車 (Global function 供 Navbar 呼叫)
         window.onOpenCart = function () {
-            fetchCart();
+            fetchCart(); // 每次打開才抓取最新購物車內容
             document.getElementById('cart-modal').classList.remove('hidden');
             document.getElementById('cart-modal').classList.add('flex');
         };
 
+        // 關閉購物車
         function closeCart() {
             document.getElementById('cart-modal').classList.add('hidden');
             document.getElementById('cart-modal').classList.remove('flex');
         }
 
+        // 抓取所有商品
         async function fetchProducts() {
             try {
-                const products = await fetchApi('/products.php');
+                const products = await fetchApi('/products.php'); // 呼叫後端 API
                 currentProducts = products;
                 const grid = document.getElementById('product-grid');
+                // 將每個商品資料轉換為 HTML 卡片
                 grid.innerHTML = products.map(p => renderProductCard(p)).join('');
             } catch (err) {
                 console.error(err);
@@ -99,9 +108,10 @@
             }
         }
 
+        // 加入購物車
         async function addToCart(productId) {
             if (!Auth.isAuthenticated()) {
-                window.location.href = 'login.html';
+                window.location.href = 'login.html'; // 未登入則導向登入頁
                 return;
             }
             const user = Auth.getUser();
@@ -116,13 +126,14 @@
                 });
                 alert('已加入購物車');
                 if (window.updateNavbarBadges) {
-                    window.updateNavbarBadges();
+                    window.updateNavbarBadges(); // 更新導覽列上的購物車數字
                 }
             } catch (err) {
                 alert('加入失敗: ' + err.message);
             }
         }
 
+        // 抓取購物車內容
         async function fetchCart() {
             if (!Auth.isAuthenticated()) return;
             const user = Auth.getUser();
@@ -139,6 +150,7 @@
                     return;
                 }
 
+                // 渲染購物車項目列表
                 container.innerHTML = items.map(item => `
                     <div class="flex justify-between items-center bg-gray-50 p-3 rounded border border-gray-200">
                         <div class="flex items-center gap-3">
@@ -155,6 +167,7 @@
                     </div>
                 `).join('');
 
+                // 計算總金額
                 const total = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
                 document.getElementById('checkout-btn-container').innerHTML = `
                     <button onclick="handleCheckout()" class="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition-colors">
@@ -167,43 +180,42 @@
             }
         }
 
+        // 移除購物車項目
         async function removeCartItem(cartItemId) {
             const user = Auth.getUser();
             try {
                 await fetchApi(`/cart.php?user_id=${user.user_id}&cart_item_id=${cartItemId}`, {
                     method: 'DELETE'
                 });
-                fetchCart();
+                fetchCart(); // 重新抓取購物車以更新畫面
             } catch (err) {
                 console.error(err);
             }
         }
 
+        // 結帳邏輯
         function handleCheckout() {
             const user = Auth.getUser();
             fetchApi('/orders.php', {
                 method: 'POST',
-                body: JSON.stringify({ user_id: user.user_id, shipping_address: "123 Main St" })
+                body: JSON.stringify({ user_id: user.user_id, shipping_address: "123 Main St" }) // 暫時寫死地址
             }).then(d => {
                 if (d.order_id) {
                     alert('訂單已建立！編號: ' + d.order_id);
                     closeCart();
-                    fetchProducts(); // Update stock visually if needed
+                    fetchProducts(); // 更新商品列表 (因為庫存變了)
                 } else {
                     alert('下單失敗: ' + (d.error || 'Unknown error'));
                 }
             }).catch(e => alert('Error: ' + e.message));
         }
 
-        // Product Modal Logic
+        // 打開商品詳情 Modal
         window.openProductModal = function (product) {
-            // Because we pass the object via JSON.stringify in HTML, it might lose some fields if special chars. 
-            // Ideally we'd look it up by ID from currentProducts, but this is okay for now.
-
+            // 因為 HTML onclick 傳遞的物件可能會缺漏，所以這裡再次從 currentProducts 查找完整資料
             const modal = document.getElementById('product-modal');
             const img = document.getElementById('modal-img');
 
-            // Re-find full object to be safe or use passed one
             const p = currentProducts.find(x => x.product_id == product.product_id) || product;
 
             img.src = p.image_url ? `/1208/${p.image_url}` : "https://via.placeholder.com/600x600";
@@ -222,6 +234,7 @@
             modal.classList.add('flex');
         }
 
+        // 關閉商品詳情 Modal
         window.closeProductModal = function () {
             const modal = document.getElementById('product-modal');
             modal.classList.add('hidden');

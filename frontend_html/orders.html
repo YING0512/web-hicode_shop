@@ -5,19 +5,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的訂單 - Hey!Code</title>
+    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 JS 工具與元件 -->
     <script src="assets/js/api.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/components.js"></script>
 </head>
 
 <body class="bg-gray-50 text-gray-900">
+    <!-- 導覽列 -->
     <div id="navbar-container"></div>
 
     <main class="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
         <h1 class="text-2xl font-bold mb-8 text-gray-800">我的訂單</h1>
 
-        <!-- Status Tabs -->
+        <!-- 狀態篩選標籤 (Tabs) -->
         <div class="flex gap-6 border-b border-gray-200 mb-8 overflow-x-auto" id="status-tabs">
             <button onclick="setFilter('ALL')"
                 class="filter-btn pb-3 px-1 text-sm font-bold border-b-2 text-blue-600 border-blue-600"
@@ -33,12 +36,13 @@
                 data-status="CANCELLED">已取消</button>
         </div>
 
+        <!-- 訂單列表容器 -->
         <div id="orders-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <p class="text-center w-full col-span-full py-8 text-gray-500">載入中...</p>
         </div>
     </main>
 
-    <!-- Cancel Modal -->
+    <!-- 取消訂單 Modal -->
     <div id="cancel-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 hidden">
         <div class="bg-white border border-gray-200 rounded-lg max-w-md w-full p-6 shadow-xl">
             <h3 class="text-xl font-bold text-gray-900 mb-4">取消訂單</h3>
@@ -60,14 +64,16 @@
     <script>
         let allOrders = [];
         let currentFilter = 'ALL';
-        let selectedOrderId = null;
+        let selectedOrderId = null; // 當前選中要操作的訂單 ID
 
+        // 初始化
         document.addEventListener('DOMContentLoaded', () => {
-            if (!Auth.checkAuth()) return;
+            if (!Auth.checkAuth()) return; // 檢查登入狀態
             renderNavbar();
             fetchOrders();
         });
 
+        // 抓取我的訂單
         async function fetchOrders() {
             const user = Auth.getUser();
             try {
@@ -80,10 +86,11 @@
             }
         }
 
+        // 切換篩選狀態 (Filter)
         function setFilter(status) {
             currentFilter = status;
 
-            // Update UI tabs
+            // 更新 UI 標籤樣式
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 if (btn.dataset.status === status) {
                     btn.classList.add('text-blue-600', 'border-blue-600');
@@ -97,8 +104,10 @@
             renderOrders();
         }
 
+        // 渲染訂單列表
         function renderOrders() {
             const container = document.getElementById('orders-container');
+            // 根據目前篩選條件過濾訂單
             const filtered = allOrders.filter(o => currentFilter === 'ALL' || o.status === currentFilter);
 
             if (filtered.length === 0) {
@@ -107,14 +116,17 @@
             }
 
             container.innerHTML = filtered.map(order => {
+                // 產生易讀的訂單編號顯示 (例如: 訂單 #202312300001)
                 const orderIdDisplay = `訂單 #${new Date(order.order_date).toISOString().slice(2, 10).replace(/-/g, '')}${String(order.order_id).padStart(4, '0')}`;
 
+                // 設定狀態標籤顏色
                 let statusClass = 'bg-gray-100 text-gray-700';
                 let statusText = order.status;
                 if (statusText === 'PENDING') { statusText = '待處理'; statusClass = 'bg-yellow-100 text-yellow-700'; }
                 else if (statusText === 'COMPLETED') { statusText = '已完成'; statusClass = 'bg-green-100 text-green-700'; }
                 else if (statusText === 'CANCELLED') { statusText = '已取消'; statusClass = 'bg-red-100 text-red-700'; }
 
+                // 渲染訂單中的商品項目
                 let itemsHtml = '';
                 try {
                     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
@@ -136,6 +148,7 @@
                     }
                 } catch (e) { console.error(e); }
 
+                // 產生整張訂單卡片 HTML
                 return `
                     <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
@@ -168,17 +181,20 @@
             }).join('');
         }
 
+        // 打開取消訂單 Modal
         function openCancelModal(orderId) {
             selectedOrderId = orderId;
             document.getElementById('cancel-reason').value = '';
             document.getElementById('cancel-modal').classList.remove('hidden');
         }
 
+        // 關閉 Modal
         function closeCancelModal() {
             document.getElementById('cancel-modal').classList.add('hidden');
             selectedOrderId = null;
         }
 
+        // 送出取消請求
         async function submitCancel() {
             const reason = document.getElementById('cancel-reason').value;
             if (!reason.trim()) { alert('請輸入取消原因'); return; }
@@ -196,7 +212,7 @@
                 });
                 alert('訂單已取消');
                 closeCancelModal();
-                fetchOrders();
+                fetchOrders(); // 重新整理列表
             } catch (err) {
                 alert('取消失敗: ' + err.message);
             }

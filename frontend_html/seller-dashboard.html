@@ -5,18 +5,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>賣家中心 - Hey!Code</title>
+    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 JS 工具與元件 -->
     <script src="assets/js/api.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/components.js"></script>
 </head>
 
 <body class="bg-gray-50 text-gray-900">
+    <!-- 導覽列 -->
     <div id="navbar-container"></div>
 
     <main class="min-h-screen pt-24 pb-12 px-4">
         <div class="max-w-[1920px] mx-auto">
-            <!-- Controls -->
+            <!-- 頂部控制列 (切換商品管理/訂單管理) -->
             <div class="flex justify-between items-center mb-8">
                 <div class="flex gap-4">
                     <div class="flex bg-gray-200 rounded p-0.5 border border-gray-300">
@@ -26,12 +29,13 @@
                             class="px-3 py-1 rounded transition-colors text-sm font-medium text-gray-500 hover:text-gray-700">訂單管理</button>
                     </div>
                 </div>
+                <!-- 新增商品按鈕 -->
                 <a href="seller-form.html"
                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors text-sm whitespace-nowrap">+
                     新增商品</a>
             </div>
 
-            <!-- Products View -->
+            <!-- 1. 商品管理檢視 (View) -->
             <div id="view-products" class="block">
                 <div id="products-grid"
                     class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
@@ -39,8 +43,9 @@
                 </div>
             </div>
 
-            <!-- Orders View -->
+            <!-- 2. 訂單管理檢視 (View) -->
             <div id="view-orders" class="hidden">
+                <!-- 訂單狀態篩選 -->
                 <div class="flex gap-4 border-b border-gray-200 mb-6 pb-4 overflow-x-auto">
                     <button onclick="setOrderFilter('ALL')"
                         class="order-filter-btn text-sm font-bold pb-1 whitespace-nowrap px-2 text-blue-600 border-b-2 border-blue-600"
@@ -55,6 +60,7 @@
                         class="order-filter-btn text-sm font-bold pb-1 whitespace-nowrap px-2 text-gray-500 hover:text-gray-700"
                         data-status="CANCELLED">已取消</button>
                 </div>
+                <!-- 訂單列表 -->
                 <div id="orders-grid" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     <p class="col-span-full text-center text-gray-500 py-8">載入中...</p>
                 </div>
@@ -67,9 +73,11 @@
         let myOrders = [];
         let currentOrderFilter = 'ALL';
 
+        // 初始化
         document.addEventListener('DOMContentLoaded', () => {
             if (!Auth.checkAuth()) return;
             const user = Auth.getUser();
+            // 賣家權限檢查
             if (user.role !== 'seller' && user.role !== 'admin') {
                 alert('權限不足');
                 window.location.href = 'index.html';
@@ -79,17 +87,23 @@
             fetchMyProducts();
         });
 
+        // 切換檢視模式 (商品列表 / 訂單列表)
         function switchView(view) {
             document.getElementById('view-products').className = view === 'products' ? 'block' : 'hidden';
             document.getElementById('view-orders').className = view === 'orders' ? 'block' : 'hidden';
 
+            // 更新按鈕樣式
             document.getElementById('btn-view-products').className = `px-3 py-1 rounded transition-colors text-sm font-medium ${view === 'products' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`;
             document.getElementById('btn-view-orders').className = `px-3 py-1 rounded transition-colors text-sm font-medium ${view === 'orders' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`;
 
+            // Lazy Load
             if (view === 'products') fetchMyProducts();
             else fetchMyOrders();
         }
 
+        // --- 商品管理邏輯 ---
+
+        // 抓取我的商品
         async function fetchMyProducts() {
             const user = Auth.getUser();
             try {
@@ -101,6 +115,7 @@
             }
         }
 
+        // 渲染商品列表
         function renderProducts() {
             const grid = document.getElementById('products-grid');
             if (myProducts.length === 0) {
@@ -132,6 +147,7 @@
                                 ${product.status === 'on_shelf' ? '上架中' : '已下架'}
                              </span>
                         </div>
+                         <!-- 快速上下架按鈕 -->
                          <button
                             onclick="handleToggleStatus(${product.product_id}, '${product.status}', ${product.stock_quantity})"
                             class="text-xs px-3 py-1.5 rounded font-medium transition-all duration-200 ${product.status === 'on_shelf' ? 'bg-gray-200 text-gray-600 hover:bg-red-100 hover:text-red-600' : 'bg-green-600 text-white hover:bg-green-500'}"
@@ -147,8 +163,10 @@
             `).join('');
         }
 
+        // 切換商品上下架狀態
         async function handleToggleStatus(productId, currentStatus, stock) {
             const newStatus = currentStatus === 'on_shelf' ? 'off_shelf' : 'on_shelf';
+            // 檢查庫存，若無庫存不能上架
             if (newStatus === 'on_shelf' && stock <= 0) {
                 if (confirm('無法直接上架：目前庫存為 0。\n\n是否前往編輯頁面補充庫存？')) {
                     window.location.href = `seller-form.html?id=${productId}`;
@@ -166,24 +184,27 @@
                         status: newStatus,
                     })
                 });
-                fetchMyProducts();
+                fetchMyProducts(); // 更新列表
             } catch (err) {
                 alert('更新失敗');
             }
         }
 
+        // 刪除商品
         async function handleDeleteProduct(productId) {
             if (!confirm('確定要刪除這個商品嗎？此動作無法復原。')) return;
             const user = Auth.getUser();
             try {
                 await fetchApi(`/products.php?id=${productId}&seller_id=${user.user_id}`, { method: 'DELETE' });
-                fetchMyProducts();
+                fetchMyProducts(); // 更新列表
             } catch (err) {
                 alert('刪除失敗');
             }
         }
 
-        /* Order Management */
+        // --- 訂單管理邏輯 ---
+
+        // 抓取我的賣場訂單
         async function fetchMyOrders() {
             const user = Auth.getUser();
             try {
@@ -195,6 +216,7 @@
             }
         }
 
+        // 訂單篩選
         function setOrderFilter(status) {
             currentOrderFilter = status;
             document.querySelectorAll('.order-filter-btn').forEach(btn => {
@@ -209,6 +231,7 @@
             renderOrders();
         }
 
+        // 渲染訂單列表
         function renderOrders() {
             const grid = document.getElementById('orders-grid');
             const filtered = myOrders.filter(o => {
@@ -223,7 +246,8 @@
 
             grid.innerHTML = filtered.map(order => {
                 const orderIdDisplay = `訂單 #${new Date(order.order_date).toISOString().slice(2, 10).replace(/-/g, '')}${String(order.order_id).padStart(4, '0')}`;
-                // Status rendering same as orders.html, but with Seller actions
+
+                // 狀態顯示與樣式
                 let statusClass = 'bg-gray-100 text-gray-700';
                 let statusText = order.status;
                 if (statusText === 'PENDING') { statusText = '待處理'; statusClass = 'bg-yellow-100 text-yellow-700'; }
@@ -284,6 +308,7 @@
             }).join('');
         }
 
+        // 賣家取消訂單
         async function handleCancelOrder(orderId) {
             const reason = prompt("請輸入取消原因:", "賣家無法出貨");
             if (reason === null) return;
@@ -305,6 +330,7 @@
             }
         }
 
+        // 賣家完成訂單 (例如確認出貨/已送達)
         async function handleCompleteOrder(orderId) {
             try {
                 await fetchApi('/orders.php', {

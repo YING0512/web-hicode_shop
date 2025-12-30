@@ -5,32 +5,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>編輯商品 - Hey!Code</title>
+    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 JS 工具與元件 -->
     <script src="assets/js/api.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/components.js"></script>
 </head>
 
 <body class="bg-gray-50 text-gray-900">
+    <!-- 導覽列 -->
     <div id="navbar-container"></div>
 
     <main class="min-h-screen pt-24 pb-12 px-4">
         <div class="max-w-2xl mx-auto bg-white border border-gray-200 p-8 rounded-lg shadow-sm">
             <h1 id="form-title" class="text-2xl font-bold mb-8 text-center text-gray-800">新增商品</h1>
 
+            <!-- 商品表單 -->
             <form id="product-form" class="space-y-6">
+                <!-- 商品名稱 -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">商品名稱</label>
                     <input type="text" name="name" required
                         class="w-full bg-white border border-gray-300 rounded px-4 py-2 focus:outline-none focus:border-blue-500 transition-colors">
                 </div>
 
+                <!-- 商品描述 -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">商品描述</label>
                     <textarea name="description" required
                         class="w-full bg-white border border-gray-300 rounded px-4 py-2 focus:outline-none focus:border-blue-500 transition-colors h-32"></textarea>
                 </div>
 
+                <!-- 價格與庫存 (並排顯示) -->
                 <div class="grid grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">價格 ($)</label>
@@ -44,12 +51,14 @@
                     </div>
                 </div>
 
+                <!-- 商品分類 (簡易實作，固定為 分類 ID 1) -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">商品分類 ID</label>
                     <input type="number" name="category_id" required min="1" value="1"
                         class="w-full bg-white border border-gray-300 rounded px-4 py-2 focus:outline-none focus:border-blue-500 transition-colors">
                 </div>
 
+                <!-- 上架狀態選擇 -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">上架狀態</label>
                     <select name="status"
@@ -59,11 +68,13 @@
                     </select>
                 </div>
 
+                <!-- 圖片上傳 (新增模式) -->
                 <div id="image-upload-section">
                     <label class="block text-sm font-medium text-gray-700 mb-2">商品圖片 (編輯模式暫不支援修改圖片)</label>
                     <div class="flex items-center space-x-4">
                         <input type="file" name="image" accept="image/*" onchange="previewImage(this)">
                     </div>
+                    <!-- 圖片預覽 -->
                     <div id="preview-container" class="mt-4 hidden">
                         <p class="text-sm text-gray-500 mb-2">預覽:</p>
                         <img id="preview-img" src="" alt="Preview"
@@ -78,28 +89,31 @@
     </main>
 
     <script>
+        // 判斷當前是「新增」還是「編輯」模式
         const urlParams = new URLSearchParams(window.location.search);
         const productId = urlParams.get('id');
         const isEditing = !!productId;
 
+        // 初始化
         document.addEventListener('DOMContentLoaded', async () => {
             if (!Auth.checkAuth()) return;
             renderNavbar();
 
             if (isEditing) {
+                // 編輯模式：修改標題與按鈕，並隱藏圖片上傳 (簡化實作)
                 document.getElementById('form-title').textContent = '編輯商品';
                 document.getElementById('submit-btn').textContent = '更新商品';
-                document.getElementById('image-upload-section').innerHTML = '<p class="text-sm text-gray-500">編輯模式下暫無法更換圖片</p>'; // Following existing logic
+                document.getElementById('image-upload-section').innerHTML = '<p class="text-sm text-gray-500">編輯模式下暫無法更換圖片</p>';
 
                 await loadProductData(productId);
             }
         });
 
+        // 載入既有商品資料
         async function loadProductData(id) {
             const user = Auth.getUser();
-            // We can fetch from product details API or find from products list
-            // Since we don't have a single product endpoint easily documented, let's fetch list and find
             try {
+                // 從賣家的商品列表中找到該商品
                 const products = await fetchApi(`/products.php?seller_id=${user.user_id}`);
                 const product = products.find(p => p.product_id == id);
                 if (product) {
@@ -116,6 +130,7 @@
             }
         }
 
+        // 圖片預覽功能
         function previewImage(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
@@ -127,6 +142,7 @@
             }
         }
 
+        // 處理表單送出
         document.getElementById('product-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submit-btn');
@@ -138,7 +154,7 @@
 
             try {
                 if (isEditing) {
-                    // Update (PUT JSON)
+                    // [編輯模式] 使用 PUT 更新商品資訊 (因為是 JSON 格式，暫不支援圖片上傳)
                     const payload = {
                         product_id: productId,
                         seller_id: user.user_id,
@@ -157,12 +173,11 @@
                     alert('商品更新成功！');
 
                 } else {
-                    // Create (POST FormData)
+                    // [新增模式] 使用 POST 建立商品 (FormData 支援圖片上傳)
                     const formData = new FormData(form);
                     formData.append('seller_id', user.user_id);
 
-                    // fetchApi assumes JSON by default if body is object, need to handle FormData
-                    // We'll use raw fetch because fetchApi sets Content-Type: application/json which breaks FormData boundary
+                    // 因為送出 FormData 包含檔案，這裡使用原生的 fetch 而非 api.js 的封裝
                     const token = localStorage.getItem('token');
                     const res = await fetch('/1208/backend/products.php', {
                         method: 'POST',
@@ -175,6 +190,7 @@
                     if (!res.ok) throw new Error(data.error || 'Failed');
                     alert('商品上架成功！');
                 }
+                // 成功後導回賣家中心
                 window.location.href = 'seller-dashboard.html';
 
             } catch (err) {
